@@ -66,10 +66,9 @@ class EventInfoUpdate extends Command
      */
     private function filterAndFormatData(Collection $events, Collection $venues)
     {
-        $events->where('notify', '1')->filter(function ($value) {
+        return $events->where('notify', '1')->filter(function ($value) {
             $date = Carbon::createFromTimestamp($value['date']['s']);
-            return /*$date->isToday() ||*/
-                $date->isTomorrow();
+            return $date->isToday() || $date->isTomorrow();
         })->map(function ($event) use ($venues) {
             $date = Carbon::createFromTimestamp($event['date']['s']);
             $venue = $venues->where('id', $event['v_id'])->first();
@@ -93,7 +92,6 @@ class EventInfoUpdate extends Command
                 'DEVICEID' => 'udid-test-devi-ceid',
             ];
         });
-        return $events;
     }
 
     public function handle()
