@@ -37,26 +37,27 @@ class EventInfoUpdate extends Command
 
     /**
      * @param array $message
-     * @return array
      */
     private function sendMessage(array $message)
     {
-        $client = new HttpClient();
-        $response = $client->post(self::PRBVLK_API_BASE_URL, [
-            'body' => json_encode([
-                'message' => json_encode(array_merge([
-                    'method' => 'sendUserMessage',
-                ], $message)),
-                'os' => 'web',
-                'clientId' => env('PRBVLK_CLIENT_ID', ''),
-                'authKey' => env('PRBVLK_AUTH_KEY', ''),
-            ]),
-            'timeout' => self::NETWORK_TIMEOUT,
-            'connect_timeout' => self::NETWORK_TIMEOUT,
-        ]);
-        print_r($response);
-        print_r($response->getBody());
-        return json_decode((string)$response->getBody(), true);
+        try {
+            $client = new HttpClient();
+            $message = json_encode(array_merge([
+                'method' => 'sendUserMessage',
+            ], $message));
+            $client->post(self::PRBVLK_API_BASE_URL, [
+                'form_params' => [
+                    'clientId' => env('PRBVLK_CLIENT_ID', ''),
+                    'authKey' => sha1($message . env('PRBVLK_CLIENT_SECRET', '')),
+                    'os' => 'web',
+                    'message' => $message,
+                ],
+                'timeout' => self::NETWORK_TIMEOUT,
+                'connect_timeout' => self::NETWORK_TIMEOUT,
+            ]);
+        } catch (\Exception $e) {
+            //TODO: Add error handler.
+        }
     }
 
     /**
@@ -89,7 +90,7 @@ class EventInfoUpdate extends Command
                     ],
                 ],
                 'EXPIRETIME' => env('MESSAGE_EXPIRETIME', 20),
-                'DEVICEID' => 'udid-test-devi-ceid',
+                'DEVICEID' => env('DEVICEID', ''),
             ];
         });
     }
