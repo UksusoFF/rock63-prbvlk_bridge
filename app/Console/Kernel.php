@@ -2,7 +2,7 @@
 
 namespace App\Console;
 
-use App\Console\Commands\EventInfoUpdate;
+use App\Console\Commands\EventInfoUpdateCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Laravel\Lumen\Console\Kernel as ConsoleKernel;
 
@@ -14,7 +14,7 @@ class Kernel extends ConsoleKernel
      * @var array
      */
     protected $commands = [
-        EventInfoUpdate::class,
+        EventInfoUpdateCommand::class,
     ];
 
     /**

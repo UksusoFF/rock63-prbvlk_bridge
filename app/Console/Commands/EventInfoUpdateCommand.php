@@ -2,19 +2,17 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\PostMessageJob;
 use Carbon\Carbon;
-use Illuminate\Console\Command;
 use GuzzleHttp\Client as HttpClient;
+use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
-class EventInfoUpdate extends Command
+class EventInfoUpdateCommand extends Command
 {
     protected $signature = 'event-info:update';
     protected $description = 'Send daily events to prbvlk api.';
-
-    const ROCK63_API_BASE_URL = 'http://rock63.ru/api';
-    const PRBVLK_API_BASE_URL = 'http://tosamara.ru/api/json';
-    const NETWORK_TIMEOUT = 15;
 
     public function __construct()
     {
@@ -28,36 +26,11 @@ class EventInfoUpdate extends Command
     private function getData($endPoint)
     {
         $client = new HttpClient();
-        $response = $client->get(implode('/', [self::ROCK63_API_BASE_URL, $endPoint]), [
-            'timeout' => self::NETWORK_TIMEOUT,
-            'connect_timeout' => self::NETWORK_TIMEOUT,
+        $response = $client->get(implode('/', [env('ROCK63_API_BASE_URL'), $endPoint]), [
+            'timeout' => env('NETWORK_TIMEOUT'),
+            'connect_timeout' => env('NETWORK_TIMEOUT'),
         ]);
         return collect(json_decode((string)$response->getBody(), true));
-    }
-
-    /**
-     * @param array $message
-     */
-    private function sendMessage(array $message)
-    {
-        try {
-            $client = new HttpClient();
-            $message = json_encode(array_merge([
-                'method' => 'sendUserMessage',
-            ], $message));
-            $client->post(self::PRBVLK_API_BASE_URL, [
-                'form_params' => [
-                    'clientId' => env('PRBVLK_CLIENT_ID', ''),
-                    'authKey' => sha1($message . env('PRBVLK_CLIENT_SECRET', '')),
-                    'os' => 'web',
-                    'message' => $message,
-                ],
-                'timeout' => self::NETWORK_TIMEOUT,
-                'connect_timeout' => self::NETWORK_TIMEOUT,
-            ]);
-        } catch (\Exception $e) {
-            //TODO: Add error handler.
-        }
     }
 
     /**
@@ -99,9 +72,13 @@ class EventInfoUpdate extends Command
     {
         $events = $this->filterAndFormatData($this->getData('events'), $this->getData('venues'));
         if (!$events->isEmpty()) {
-            $events->each(function ($event) {
-                $this->sendMessage($event);
+            $events->each(function ($event, $key) {
+                $job = (new PostMessageJob($event))
+                    ->delay(Carbon::now()->addSeconds($key * (int)env('PRBVLK_QUEUE_TIMEOUT')));
+                dispatch($job);
             });
+        } else {
+            Log::debug('No notification events today.');
         }
     }
 }
